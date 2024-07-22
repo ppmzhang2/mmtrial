@@ -13,10 +13,12 @@ from mmdet.apis import init_detector
 from mmdet.registry import VISUALIZERS
 
 MDL_CFG = "faster-rcnn_r50_fpn_1x_coco.py"
-MDL_CHK = "faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
+# MDL_CHK = "faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
+MDL_CHK = "../work_dirs/faster-rcnn_r50_fpn_1x_coco/epoch_12.pth"
 DEVICE = "cuda:0"
 IMG_DST_DIR = "."
-IMG_DEMO = "../mmdetection/demo/demo.jpg"
+# IMG_DEMO = "../mmdetection/demo/demo.jpg"
+IMG_DEMO = "data/chch/val/20231018/G0029142.JPG"
 
 base_dir = os.path.abspath(os.path.dirname(__file__))
 ckpt_dir = os.path.join(base_dir, "checkpoints")
@@ -58,6 +60,6 @@ visualizer.add_datasample(
     image=mmcv.imconvert(img_demo, "bgr", "rgb"),
     data_sample=res,
     draw_gt=False,
-    pred_score_thr=0.3,
+    pred_score_thr=0.5,
     show=False,
 )
