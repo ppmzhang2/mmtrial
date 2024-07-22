@@ -21,4 +21,5 @@ include/config.h
 data/
 checkpoints/
 workdir/
+work_dirs/
 .python-version
