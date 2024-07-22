@@ -1,0 +1,13 @@
+name: py311-cuda124-openmmlab
+channels:
+  - pytorch-nightly
+  - nvidia
+dependencies:
+  - python=3.11.9
+  - pytorch-cuda=12.4
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pip
+  - pip:
+      - openmim # for OpenMMLab
