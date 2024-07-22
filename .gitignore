@@ -19,4 +19,6 @@ include/config.h
 
 # misc
 data/
+checkpoints/
+workdir/
 .python-version

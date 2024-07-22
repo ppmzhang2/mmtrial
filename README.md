@@ -15,6 +15,26 @@ Uninstall:
 conda env remove --name py311-cuda124-openmmlab
 ```
 
+## Dataset
+
+Download COCO 2017 dataset:
+
+```bash
+python cmd/download_dataset.py --dataset-name coco2017 --unzip
+```
+
+which will create the following data hierarchy:
+
+```plaintext
+root
+├── data
+│   ├── coco
+│   │   ├── annotations
+│   │   ├── train2017
+│   │   ├── val2017
+│   │   ├── test2017
+```
+
 ## Faster R-CNN
 
 Model list:
@@ -94,4 +114,13 @@ Download model with `mim`:
 
 ```bash
 mim download mmdet --config faster-rcnn_r50_fpn_1x_coco --dest .
+```
+
+Evaluate on test dataset:
+
+```bash
+python cmd/test.py \
+    faster-rcnn_r50_fpn_1x_coco.py \
+    checkpoints/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth \
+    --show-dir res_faster-rcnn_r50_fpn_1x_coco --work-dir workdir
 ```
