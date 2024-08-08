@@ -35,6 +35,27 @@ root
 │   │   ├── test2017
 ```
 
+Our customized Christchurch dataset follows the COCO format:
+
+```plaintext
+root
+├── data
+│   ├── chch
+│   │   ├── annotations
+│   │   │   ├── instances_train2.json
+│   │   │   ├── instances_val2.json
+│   │   │   ├── instances_train7.json
+│   │   │   ├── instances_val7.json
+│   │   ├── train
+│   │   ├── val
+```
+
+Note that annotation files `instances_train2.json` and `instances_val2.json`
+contains only one category `distress`, which are used for localization only.
+Annotation files `instances_train7.json` and `instances_val7.json` contains
+seven different footpath distress categories, for classification and
+localization.
+
 ## Faster R-CNN
 
 Model list:
@@ -122,5 +143,12 @@ Evaluate on test dataset:
 python cmd/test.py \
     faster-rcnn_r50_fpn_1x_coco.py \
     checkpoints/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth \
-    --show-dir res_faster-rcnn_r50_fpn_1x_coco --work-dir workdir
+    --show-dir res_faster-rcnn_r50_fpn_1x_coco --work-dir work_dirs
+```
+
+Train:
+
+```bash
+python cmd/train.py \
+    faster-rcnn_r50_fpn_1x_coco.py --auto-scale-lr
 ```
