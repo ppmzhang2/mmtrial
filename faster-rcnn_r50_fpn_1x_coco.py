@@ -13,6 +13,7 @@ METRIC_TYPE = "CocoMetric"
 
 auto_scale_lr = dict(base_batch_size=16, enable=False)
 backend_args = None
+data_root = "data/chch/"
 default_hooks = dict(
     checkpoint=dict(interval=1, type="CheckpointHook"),
     logger=dict(interval=50, type="LoggerHook"),
@@ -222,10 +223,7 @@ test_dataloader = dict(
         data_root=DATA_ROOT,
         pipeline=[
             dict(backend_args=None, type="LoadImageFromFile"),
-            dict(keep_ratio=True, scale=(
-                1333,
-                800,
-            ), type="Resize"),
+            dict(keep_ratio=True, scale=(1333, 800), type="Resize"),
             dict(type="LoadAnnotations", with_bbox=True),
             dict(
                 meta_keys=(
@@ -252,10 +250,7 @@ test_evaluator = dict(
     type=METRIC_TYPE)
 test_pipeline = [
     dict(backend_args=None, type="LoadImageFromFile"),
-    dict(keep_ratio=True, scale=(
-        1333,
-        800,
-    ), type="Resize"),
+    dict(keep_ratio=True, scale=(1333, 800), type="Resize"),
     dict(type="LoadAnnotations", with_bbox=True),
     dict(
         meta_keys=(
@@ -280,10 +275,7 @@ train_dataloader = dict(
         pipeline=[
             dict(backend_args=None, type="LoadImageFromFile"),
             dict(type="LoadAnnotations", with_bbox=True),
-            dict(keep_ratio=True, scale=(
-                1333,
-                800,
-            ), type="Resize"),
+            dict(keep_ratio=True, scale=(1333, 800), type="Resize"),
             dict(prob=0.5, type="RandomFlip"),
             dict(type="PackDetInputs"),
         ],
@@ -293,13 +285,14 @@ train_dataloader = dict(
     persistent_workers=True,
     sampler=dict(shuffle=True, type="DefaultSampler"))
 train_pipeline = [
+    # transformers:
+    # open-mmlab/mmdetection/blob/3.x/mmdet/datasets/transforms/transforms.py
     dict(backend_args=None, type="LoadImageFromFile"),
     dict(type="LoadAnnotations", with_bbox=True),
-    dict(keep_ratio=True, scale=(
-        1333,
-        800,
-    ), type="Resize"),
-    dict(prob=0.5, type="RandomFlip"),
+    dict(keep_ratio=True, scale=(1333, 800), type="Resize"),
+    dict(prob=0.2, type="RandomFlip"),
+    dict(prob=0.2, type="RandomAffine"),
+    dict(prob=0.1, type="PhotoMetricDistortion"),
     dict(type="PackDetInputs"),
 ]
 val_cfg = dict(type="ValLoop")
@@ -312,10 +305,7 @@ val_dataloader = dict(
         data_root=DATA_ROOT,
         pipeline=[
             dict(backend_args=None, type="LoadImageFromFile"),
-            dict(keep_ratio=True, scale=(
-                1333,
-                800,
-            ), type="Resize"),
+            dict(keep_ratio=True, scale=(1333, 800), type="Resize"),
             dict(type="LoadAnnotations", with_bbox=True),
             dict(
                 meta_keys=(
