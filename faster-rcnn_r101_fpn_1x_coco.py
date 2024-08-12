@@ -1,6 +1,3 @@
-# ref:
-# - https://mmdetection.readthedocs.io/en/latest/advanced_guides/customize_dataset.html
-# - https://github.com/open-mmlab/mmdetection/issues/1432
 METAINFO = {
     "classes": ("distress", ),
     # palette is a list of color tuples, which is used for visualization.
@@ -11,8 +8,9 @@ DATA_ROOT = "data/chch/"
 DATASET_TYPE = "CocoDataset"
 METRIC_TYPE = "CocoMetric"
 N_CLASSES = 1
+BATCH_SIZE_TR = 8
 
-auto_scale_lr = dict(base_batch_size=16, enable=False)
+auto_scale_lr = dict(base_batch_size=BATCH_SIZE_TR, enable=False)
 backend_args = None
 data_root = DATA_ROOT
 dataset_type = DATASET_TYPE
@@ -34,9 +32,9 @@ log_processor = dict(by_epoch=True, type="LogProcessor", window_size=50)
 
 model = dict(
     backbone=dict(
-        depth=50,
+        depth=101,
         frozen_stages=1,
-        init_cfg=dict(checkpoint="torchvision://resnet50", type="Pretrained"),
+        init_cfg=dict(checkpoint="torchvision://resnet101", type="Pretrained"),
         norm_cfg=dict(requires_grad=True, type="BN"),
         norm_eval=True,
         num_stages=4,
@@ -217,7 +215,7 @@ param_scheduler = [
 resume = False
 test_cfg = dict(type="TestLoop")
 test_dataloader = dict(
-    batch_size=32,
+    batch_size=16,
     dataset=dict(
         ann_file="annotations/instances_val2.json",
         backend_args=None,
@@ -283,7 +281,7 @@ train_pipeline = [
 ]
 train_dataloader = dict(
     batch_sampler=dict(type="AspectRatioBatchSampler"),
-    batch_size=16,
+    batch_size=BATCH_SIZE_TR,
     dataset=dict(
         ann_file="annotations/instances_train2.json",
         backend_args=None,
@@ -293,7 +291,7 @@ train_dataloader = dict(
         pipeline=train_pipeline,
         metainfo=METAINFO,
         type=DATASET_TYPE),
-    num_workers=16,
+    num_workers=8,
     persistent_workers=True,
     sampler=dict(shuffle=True, type="DefaultSampler"))
 val_cfg = dict(type="ValLoop")
