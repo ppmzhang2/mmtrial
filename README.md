@@ -140,8 +140,8 @@ mim download mmdet --config faster-rcnn_r50_fpn_1x_coco --dest .
 Evaluate on test dataset:
 
 ```bash
-python cmd/test.py \
-    faster-rcnn_r50_fpn_1x_coco.py \
+python src/mmtrial/test.py \
+    src/mmtrial/configs/faster-rcnn_r50_fpn_1x_coco.py \
     checkpoints/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth \
     --show-dir res_faster-rcnn_r50_fpn_1x_coco --work-dir work_dirs
 ```
@@ -149,6 +149,6 @@ python cmd/test.py \
 Train:
 
 ```bash
-python cmd/train.py \
-    faster-rcnn_r50_fpn_1x_coco.py --auto-scale-lr
+python src/mmtrial/train.py \
+    src/mmtrial/configs/faster-rcnn_r50_fpn_1x_coco.py --auto-scale-lr
 ```

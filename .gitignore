@@ -2,7 +2,12 @@
 .DS_Store
 build/
 build_contrib/
+dist/
 .cache/
+*.egg-info/
+*.egg
+*.py[cod]
+__pycache__/
 *.so
 *~
 
@@ -22,3 +27,4 @@ data/
 checkpoints/
 work_dirs/
 .python-version
+ruff.log

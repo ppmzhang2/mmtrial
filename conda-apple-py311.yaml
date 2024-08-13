@@ -1,0 +1,18 @@
+name: py311-apple-mmdet
+channels:
+  - pytorch-nightly
+  - apple
+dependencies:
+  - python=3.11.9
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pip
+  - pip:
+      - openmim # for OpenMMLab
+      # dev tools
+      - ruff>=0.0.271
+      - yapf>=0.33.0
+      - isort>=5.12.0
+      - ipython
+      - jedi-language-server
