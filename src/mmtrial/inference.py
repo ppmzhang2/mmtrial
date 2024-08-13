@@ -2,6 +2,7 @@
 
 Ref: https://github.com/open-mmlab/mmdetection/issues/10829
 """
+
 import os
 from enum import Enum
 
@@ -26,6 +27,7 @@ ckpt_dir = os.path.join(base_dir, "checkpoints")
 
 class TColor(Enum):
     """Colors for terminal output."""
+
     HEADER = "\033[95m"
     OKBLUE = "\033[94m"
     OKCYAN = "\033[96m"
