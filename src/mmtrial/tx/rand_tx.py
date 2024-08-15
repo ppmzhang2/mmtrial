@@ -39,9 +39,9 @@ class RandTx(BaseTransform):
 
     def __init__(
         self,
-        p_cum_flip: float = 0.40,
+        p_cum_flip: float = 0.50,
         p_cum_shift: float = 0.67,
-        p_cum_photo: float = 0.84,
+        p_cum_photo: float = 0.94,
         p_cum_affine: float = 1.00,
     ):
         # Define cumulative probabilities
@@ -89,16 +89,19 @@ class RandTx(BaseTransform):
         Returns:
             dict: Transformed results.
         """
-        rand1, rand2 = random.random(), random.random()  # noqa: S311
-        key_tx1 = self._select_tx(rand1)
-        key_tx2 = self._select_tx(rand2)
+        x1, x2 = sorted([random.random() for _ in range(2)])  # noqa: S311
+        key_tx1 = self._select_tx(x1)
+        key_tx2 = self._select_tx(x2)
 
-        if key_tx1 == _K_NONE and key_tx2 == _K_NONE:
+        # 1. no transformation
+        #    since x1 < x2, if TX1 is none, TX2 is also none
+        if key_tx1 == _K_NONE:
             pass
-        elif key_tx1 == _K_NONE:
-            results = self._tx[key_tx2](results)
-        elif key_tx2 == _K_NONE:
+        # 2. TX1 only (TX2 is none)
+        # 3. same transformations (TX1 == TX2), apply once (TX1)
+        elif key_tx2 in (_K_NONE, key_tx1):
             results = self._tx[key_tx1](results)
+        # 4. two different transformations
         else:
             results = self._tx[key_tx1](results)
             results = self._tx[key_tx2](results)
