@@ -3,7 +3,7 @@
 
 custom_imports = dict(
     # import is relative to where your train script is located
-    imports=["tx.rand_tx"],
+    imports=["tx.rand_tx", "hooks.unfreeze_backbone_epoch_based_hook"],
     allow_failed_imports=False,
 )
 
@@ -60,7 +60,7 @@ model = dict(
         depth=101,
         frozen_stages=1,
         init_cfg=dict(checkpoint="torchvision://resnet101", type="Pretrained"),
-        norm_cfg=dict(requires_grad=True, type="BN"),
+        norm_cfg=dict(requires_grad=True, type="BN"),  # TODO: GN
         norm_eval=True,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
@@ -198,22 +198,33 @@ optim_wrapper = dict(
     type="OptimWrapper",
 )
 param_scheduler = [
+    # ========== LR warm-up ==========
+    # Based on the training batch size (8), each epoch has 5172 iterations.
+    # Therefore after 4 epochs, the learning rate will be increased to 0.02.
     dict(
         begin=0,
         by_epoch=False,
-        end=500,
+        end=20688,
         start_factor=0.001,
+        end_factor=1.0,
         type="LinearLR",
     ),
+    # ========== LR decay ==========
+    # The learning rate will be decayed by a factor of 0.1 each time AFTER
+    # the specified epoch milestones.
+    # We decay the learning rate first at epoch 6, right after the warm-up
+    # phase, then decay it again every 2 epochs based on experiment results.
     dict(
         begin=0,
         by_epoch=True,
-        end=12,
-        gamma=0.1,
-        milestones=[8, 11],
+        end=10,
+        gamma=0.2,
+        milestones=[5, 7, 9],
         type="MultiStepLR",
     ),
 ]
+
+custom_hooks = [dict(type="UnfreezeBackboneEpochBasedHook", unfreeze_epoch=11)]
 resume = False
 test_cfg = dict(type="TestLoop")
 test_dataloader = dict(
@@ -252,7 +263,7 @@ test_pipeline = [
     dict(meta_keys=PACK_DET_INPUTS_META_KEYS, type="PackDetInputs"),
 ]
 train_cfg = dict(
-    max_epochs=10,
+    max_epochs=14,
     val_interval=1,
     type="EpochBasedTrainLoop",
 )
