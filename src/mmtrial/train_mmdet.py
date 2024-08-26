@@ -2,19 +2,27 @@
 import argparse
 import os
 import os.path as osp
-from copy import deepcopy
 
-from mmengine.config import Config, ConfigDict, DictAction
+from mmengine.config import Config, DictAction
 from mmengine.registry import RUNNERS
 from mmengine.runner import Runner
-from mmengine.utils import digit_version
-from mmengine.utils.dl_utils import TORCH_VERSION
+
+from mmdet.utils import setup_cache_size_limit_of_dynamo
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Train a model')
+    parser = argparse.ArgumentParser(description='Train a detector')
     parser.add_argument('config', help='train config file path')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
+    parser.add_argument(
+        '--amp',
+        action='store_true',
+        default=False,
+        help='enable automatic-mixed-precision training')
+    parser.add_argument(
+        '--auto-scale-lr',
+        action='store_true',
+        help='enable automatically scaling LR.')
     parser.add_argument(
         '--resume',
         nargs='?',
@@ -23,28 +31,6 @@ def parse_args():
         help='If specify checkpoint path, resume from it, while if not '
         'specify, try to auto resume from the latest checkpoint '
         'in the work directory.')
-    parser.add_argument(
-        '--amp',
-        action='store_true',
-        help='enable automatic-mixed-precision training')
-    parser.add_argument(
-        '--no-validate',
-        action='store_true',
-        help='whether not to evaluate the checkpoint during training')
-    parser.add_argument(
-        '--auto-scale-lr',
-        action='store_true',
-        help='whether to auto scale the learning rate according to the '
-        'actual batch size and the original batch size.')
-    parser.add_argument(
-        '--no-pin-memory',
-        action='store_true',
-        help='whether to disable the pin_memory option in dataloaders.')
-    parser.add_argument(
-        '--no-persistent-workers',
-        action='store_true',
-        help='whether to disable the persistent_workers option in dataloaders.'
-    )
     parser.add_argument(
         '--cfg-options',
         nargs='+',
@@ -71,14 +57,18 @@ def parse_args():
     return args
 
 
-def merge_args(cfg, args):
-    """Merge CLI arguments to config."""
-    if args.no_validate:
-        cfg.val_cfg = None
-        cfg.val_dataloader = None
-        cfg.val_evaluator = None
+def main():
+    args = parse_args()
 
+    # Reduce the number of repeated compilations and improve
+    # training speed.
+    setup_cache_size_limit_of_dynamo()
+
+    # load config
+    cfg = Config.fromfile(args.config)
     cfg.launcher = args.launcher
+    if args.cfg_options is not None:
+        cfg.merge_from_dict(args.cfg_options)
 
     # work_dir is determined in this priority: CLI > segment in file > filename
     if args.work_dir is not None:
@@ -92,58 +82,27 @@ def merge_args(cfg, args):
     # enable automatic-mixed-precision training
     if args.amp is True:
         cfg.optim_wrapper.type = 'AmpOptimWrapper'
-        cfg.optim_wrapper.setdefault('loss_scale', 'dynamic')
+        cfg.optim_wrapper.loss_scale = 'dynamic'
 
-    # resume training
+    # enable automatically scaling LR
+    if args.auto_scale_lr:
+        if 'auto_scale_lr' in cfg and \
+                'enable' in cfg.auto_scale_lr and \
+                'base_batch_size' in cfg.auto_scale_lr:
+            cfg.auto_scale_lr.enable = True
+        else:
+            raise RuntimeError('Can not find "auto_scale_lr" or '
+                               '"auto_scale_lr.enable" or '
+                               '"auto_scale_lr.base_batch_size" in your'
+                               ' configuration file.')
+
+    # resume is determined in this priority: resume from > auto_resume
     if args.resume == 'auto':
         cfg.resume = True
         cfg.load_from = None
     elif args.resume is not None:
         cfg.resume = True
         cfg.load_from = args.resume
-
-    # enable auto scale learning rate
-    if args.auto_scale_lr:
-        cfg.auto_scale_lr.enable = True
-
-    # set dataloader args
-    default_dataloader_cfg = ConfigDict(
-        pin_memory=True,
-        persistent_workers=True,
-        collate_fn=dict(type='default_collate'),
-    )
-    if digit_version(TORCH_VERSION) < digit_version('1.8.0'):
-        default_dataloader_cfg.persistent_workers = False
-
-    def set_default_dataloader_cfg(cfg, field):
-        if cfg.get(field, None) is None:
-            return
-        dataloader_cfg = deepcopy(default_dataloader_cfg)
-        dataloader_cfg.update(cfg[field])
-        cfg[field] = dataloader_cfg
-        if args.no_pin_memory:
-            cfg[field]['pin_memory'] = False
-        if args.no_persistent_workers:
-            cfg[field]['persistent_workers'] = False
-
-    set_default_dataloader_cfg(cfg, 'train_dataloader')
-    set_default_dataloader_cfg(cfg, 'val_dataloader')
-    set_default_dataloader_cfg(cfg, 'test_dataloader')
-
-    if args.cfg_options is not None:
-        cfg.merge_from_dict(args.cfg_options)
-
-    return cfg
-
-
-def main():
-    args = parse_args()
-
-    # load config
-    cfg = Config.fromfile(args.config)
-
-    # merge cli arguments to config
-    cfg = merge_args(cfg, args)
 
     # build the runner from config
     if 'runner_type' not in cfg:
