@@ -3,7 +3,7 @@
 
 custom_imports = dict(
     # import is relative to where your train script is located
-    imports=["tx.rand_tx", "hooks"],
+    imports=["tx", "hooks"],
     allow_failed_imports=False,
 )
 
@@ -271,7 +271,7 @@ train_pipeline = [
     dict(backend_args=None, type="LoadImageFromFile"),
     dict(with_bbox=True, type="LoadAnnotations"),
     dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
-    dict(type="RandTx"),  # all-in-one custom transform
+    dict(type="RandMMDetTx"),  # all-in-one custom transform
     dict(type="PackDetInputs"),
 ]
 train_dataloader = dict(
