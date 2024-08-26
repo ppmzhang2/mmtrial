@@ -1,7 +1,9 @@
 """Customized Hooks."""
 
-from .unfreeze_backbone_epoch_based_hook import UnfreezeBackboneEpochBasedHook
+from .unfreeze_mmdet_hook import UnfreezeMMDetHook
+from .unfreeze_mmpretrain_hook import UnfreezeMMPretrainHook
 
 __all__ = [
-    "UnfreezeBackboneEpochBasedHook",
+    "UnfreezeMMDetHook",
+    "UnfreezeMMPretrainHook",
 ]

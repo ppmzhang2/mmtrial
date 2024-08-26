@@ -3,7 +3,7 @@
 
 custom_imports = dict(
     # import is relative to where your train script is located
-    imports=["tx.rand_tx", "hooks.unfreeze_backbone_epoch_based_hook"],
+    imports=["tx.rand_tx", "hooks"],
     allow_failed_imports=False,
 )
 
@@ -224,7 +224,7 @@ param_scheduler = [
     ),
 ]
 
-custom_hooks = [dict(type="UnfreezeBackboneEpochBasedHook", unfreeze_epoch=11)]
+custom_hooks = [dict(type="UnfreezeMMDetHook", unfreeze_epoch=11)]
 resume = False
 test_cfg = dict(type="TestLoop")
 test_dataloader = dict(

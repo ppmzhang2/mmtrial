@@ -1,13 +1,11 @@
 """Epoch-based unfreeze backbone network Hook."""
 
-from mmdet.registry import HOOKS
 from mmengine.hooks import Hook
 from mmengine.model import is_model_wrapper
 from mmengine.runner import Runner
 
 
-@HOOKS.register_module()
-class UnfreezeBackboneEpochBasedHook(Hook):
+class UnfreezeBaseHook(Hook):
     """Unfreeze backbone network Hook.
 
     Args:

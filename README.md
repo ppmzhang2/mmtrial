@@ -15,7 +15,9 @@ Uninstall:
 conda env remove --name py311-cuda124-openmmlab
 ```
 
-## Dataset
+## Object Detection
+
+### Dataset
 
 Download COCO 2017 dataset:
 
@@ -56,7 +58,7 @@ Annotation files `instances_train7.json` and `instances_val7.json` contains
 seven different footpath distress categories, for classification and
 localization.
 
-## Faster R-CNN
+### Faster R-CNN
 
 Model list:
 
@@ -151,4 +153,12 @@ Train:
 ```bash
 python src/mmtrial/train.py \
     src/mmtrial/configs/faster-rcnn_r50_fpn_1x_coco.py --auto-scale-lr
+```
+
+## Classification
+
+Download model and dataset:
+
+```bash
+mim download mmpretrain --config resnet50_8xb32_in1k --dest .
 ```
