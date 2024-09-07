@@ -85,31 +85,30 @@ optim_wrapper = dict(
 )
 param_scheduler = [
     # ========== LR warm-up ==========
-    # If one epoch contains 933 iterations, then after 30 epochs, the learning
-    # rate will reach its maximum value of 0.05.
+    # After 100 epochs, the learning rate will reach the base learning rate
+    # (0.001) from the initial one (0.0001)
     dict(
         begin=0,
-        by_epoch=False,
-        end=27990,
+        by_epoch=True,
+        end=100,
         start_factor=0.01,
         end_factor=1.0,
         type="LinearLR",
     ),
     # ========== LR decay ==========
-    # The learning rate will be decayed by a factor of 0.5 each time AFTER
+    # The learning rate will be decayed by a factor of 0.2 each time AFTER
     # the specified epoch milestones.
-    # We decay the learning rate first at epoch 20, 10 epochs after the warm-up
-    # phase, then decay it again every 5 epochs.
     dict(
-        begin=0,
+        begin=100,
         by_epoch=True,
         end=500,
         gamma=0.2,
-        milestones=[49, 99, 199, 299, 399],
+        milestones=[120, 220, 320, 420],
         type="MultiStepLR",
     ),
 ]
 
+# # We do NOT freeze the backbone
 # custom_hooks = [
 #     dict(type="UnfreezeMMPretrainHook", unfreeze_epoch=N_EPOCH_FREEZE),
 # ]
