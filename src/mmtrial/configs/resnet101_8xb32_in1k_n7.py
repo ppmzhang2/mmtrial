@@ -110,6 +110,7 @@ param_scheduler = [
     ),
 ]
 
+# # We do NOT freeze the backbone
 # custom_hooks = [
 #     dict(type="UnfreezeMMPretrainHook", unfreeze_epoch=N_EPOCH_FREEZE),
 # ]
