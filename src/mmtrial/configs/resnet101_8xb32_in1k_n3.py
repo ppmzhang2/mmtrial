@@ -14,8 +14,8 @@ N_CLASS = 3
 TOPK = (1, 2)
 N_PER_BATCH = 60
 N_PER_CLASS = 20
-N_EPOCH = 70
-N_EPOCH_FREEZE = 50
+N_EPOCH = 600
+N_EPOCH_FREEZE = 200
 N_WORKERS = 10
 DATA_ROOT = "data/severity"
 RESIZE_SCALE = (224, 224)
@@ -51,7 +51,7 @@ log_level = "INFO"
 model = dict(
     backbone=dict(
         depth=101,
-        frozen_stages=1,
+        frozen_stages=-1,  # -1 means all layers are trainable
         init_cfg=dict(checkpoint="torchvision://resnet101", type="Pretrained"),
         norm_cfg=dict(requires_grad=True, type="BN"),  # TODO: GN
         norm_eval=True,
@@ -60,12 +60,7 @@ model = dict(
         style="pytorch",
         type="ResNet",
     ),
-    data_preprocessor = dict(
-        num_classes=N_CLASS,
-        mean=[123.675, 116.28, 103.53],
-        std=[58.395, 57.12, 57.375],
-        to_rgb=True,
-    ),
+    data_preprocessor=data_preprocessor,
     head=dict(
         num_classes=N_CLASS,
         in_channels=(256, 512, 1024, 2048),
@@ -77,39 +72,38 @@ model = dict(
 )
 
 optim_wrapper = dict(
-    optimizer=dict(lr=0.01, momentum=0.9, type="SGD", weight_decay=0.0001),
+    optimizer=dict(lr=0.001, momentum=0.9, type="SGD", weight_decay=0.0001),
     type="OptimWrapper",
 )
 param_scheduler = [
     # ========== LR warm-up ==========
-    # If one epoch contains 933 iterations, then after 20 epochs, the learning
-    # rate will reach its maximum value of 0.02.
+    # After 100 epochs, the learning rate will reach the base learning rate
+    # (0.001) from the initial one (0.0001)
     dict(
-        by_epoch=False,
         begin=0,
-        end=18660,
+        by_epoch=True,
+        end=100,
         start_factor=0.01,
         end_factor=1.0,
         type="LinearLR",
     ),
     # ========== LR decay ==========
-    # The learning rate will be decayed by a factor of 0.5 each time AFTER
+    # The learning rate will be decayed by a factor of 0.2 each time AFTER
     # the specified epoch milestones.
-    # We decay the learning rate first at epoch 40, 10 epochs after the warm-up
-    # phase, then decay it again every 10 epochs.
     dict(
+        begin=100,
         by_epoch=True,
-        begin=18,
-        end=70,
+        end=500,
         gamma=0.2,
-        milestones=[39, 49, 59, 69],
+        milestones=[120, 220, 320, 420],
         type="MultiStepLR",
     ),
 ]
 
-custom_hooks = [
-    dict(type="UnfreezeMMPretrainHook", unfreeze_epoch=N_EPOCH_FREEZE),
-]
+# # We do NOT freeze the backbone
+# custom_hooks = [
+#     dict(type="UnfreezeMMPretrainHook", unfreeze_epoch=N_EPOCH_FREEZE),
+# ]
 randomness = dict(deterministic=False, seed=None)
 resume = False
 
@@ -137,7 +131,7 @@ test_evaluator = dict(topk=TOPK, type="Accuracy")
 train_cfg = dict(by_epoch=True, max_epochs=N_EPOCH, val_interval=1)
 train_pipeline = [
     dict(type="LoadImageFromFile"),
-    dict(scale=224, type="RandomResizedCrop"),
+    dict(scale=224, crop_ratio_range=(0.9, 1.0), type="RandomResizedCrop"),
     # dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
     dict(type="RandTx"),  # all-in-one custom transform
     # dict(direction=["horizontal", "vertical"], prob=0.5, type="RandomFlip"),
