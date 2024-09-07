@@ -23,6 +23,7 @@ include/config.h
 .vscode/
 
 # misc
+results/
 data/
 checkpoints/
 work_dirs/

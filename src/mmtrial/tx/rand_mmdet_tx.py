@@ -2,27 +2,26 @@
 
 import random
 
-from mmcv.transforms import TRANSFORMS
 from mmcv.transforms import BaseTransform
-from mmcv.transforms import RandomFlip
-from mmcv.transforms import RandomGrayscale
+from mmdet.datasets.transforms import PhotoMetricDistortion
+from mmdet.datasets.transforms import RandomAffine
+from mmdet.datasets.transforms import RandomFlip
+from mmdet.datasets.transforms import RandomShift
+from mmdet.registry import TRANSFORMS
 
-from .random_affine import RandomAffine
-from .random_shift import RandomShift
-
-__all__ = ["RandTx"]
+__all__ = ["RandMMDetTx"]
 
 _P_TX = 0.70  # Probability of transformation
 _K_NONE = "none"
 _K_FLIP = "flip"
 _K_SHIFT = "shift"
-_K_GRAY = "gray"
+_K_PHOTO = "photo"
 _K_AFFINE = "affine"
 
 
 @TRANSFORMS.register_module()
-class RandTx(BaseTransform):
-    """Randomly apply to one batch at most one transformation.
+class RandMMDetTx(BaseTransform):
+    """Randomly apply to one batch at most one transformation for MMDet.
 
     RandomCrop is not included as it may return None when no bounding box
     is included in the results.
@@ -49,26 +48,26 @@ class RandTx(BaseTransform):
         self._p_cum = {
             _K_FLIP: p_cum_flip * _P_TX,
             _K_SHIFT: p_cum_shift * _P_TX,
-            _K_GRAY: p_cum_photo * _P_TX,
+            _K_PHOTO: p_cum_photo * _P_TX,
             _K_AFFINE: p_cum_affine * _P_TX,
         }
         # Define transformations
         # TODO: fine-tune the parameters
         self._tx = {
             _K_FLIP:
-            RandomFlip(prob=1.0, direction=["horizontal", "vertical"]),
+            RandomFlip(prob=1.0, direction="horizontal"),
             _K_SHIFT:
             RandomShift(prob=1.0),
-            _K_GRAY:
-            RandomGrayscale(
-                prob=1.0,
-                keep_channels=True,
-                channel_weights=[1.0, 1.0, 1.0],
-                color_format="bgr",
+            _K_PHOTO:
+            PhotoMetricDistortion(
+                brightness_delta=16,
+                contrast_range=(0.9, 1.1),
+                saturation_range=(0.9, 1.1),
+                hue_delta=10,
             ),
             _K_AFFINE:
             RandomAffine(
-                max_rot_degree=5.0,
+                max_rotate_degree=5.0,
                 max_translate_ratio=0.05,
                 scaling_ratio_range=(0.9, 1.1),
                 max_shear_degree=1.0,
