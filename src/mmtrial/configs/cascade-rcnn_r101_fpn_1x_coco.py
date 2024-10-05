@@ -33,7 +33,7 @@ PACK_DET_INPUTS_META_KEYS = (
     "scale_factor",
 )
 
-auto_scale_lr = dict(base_batch_size=BATCH_SIZE_TR, enable=False)
+auto_scale_lr = dict(base_batch_size=16, enable=False)
 backend_args = None
 data_root = DATA_ROOT
 dataset_type = DATASET_TYPE
@@ -60,7 +60,7 @@ model = dict(
         depth=101,
         frozen_stages=1,
         init_cfg=dict(checkpoint="torchvision://resnet101", type="Pretrained"),
-        norm_cfg=dict(requires_grad=True, type="BN"),  # TODO: GN
+        norm_cfg=dict(requires_grad=True, type="BN"),
         norm_eval=True,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
@@ -81,32 +81,74 @@ model = dict(
         type="FPN",
     ),
     roi_head=dict(
-        bbox_head=dict(
-            bbox_coder=dict(
-                target_means=[0.0, 0.0, 0.0, 0.0],
-                target_stds=[0.1, 0.1, 0.2, 0.2],
-                type="DeltaXYWHBBoxCoder",
+        bbox_head=[
+            dict(
+                bbox_coder=dict(
+                    target_means=[0.0, 0.0, 0.0, 0.0],
+                    target_stds=[0.1, 0.1, 0.2, 0.2],
+                    type="DeltaXYWHBBoxCoder",
+                ),
+                fc_out_channels=1024,
+                in_channels=256,
+                loss_bbox=dict(beta=1.0, loss_weight=3.0, type="SmoothL1Loss"),
+                loss_cls=dict(
+                    loss_weight=1.0,
+                    use_sigmoid=False,
+                    type="CrossEntropyLoss",
+                ),
+                num_classes=N_CLASSES,
+                reg_class_agnostic=True,
+                roi_feat_size=7,
+                type="Shared2FCBBoxHead",
             ),
-            fc_out_channels=1024,
-            in_channels=256,
-            loss_bbox=dict(loss_weight=1.0, type="L1Loss"),
-            loss_cls=dict(
-                loss_weight=1.0,
-                use_sigmoid=False,
-                type="CrossEntropyLoss",
+            dict(
+                bbox_coder=dict(
+                    target_means=[0.0, 0.0, 0.0, 0.0],
+                    target_stds=[0.05, 0.05, 0.1, 0.1],
+                    type="DeltaXYWHBBoxCoder",
+                ),
+                fc_out_channels=1024,
+                in_channels=256,
+                loss_bbox=dict(beta=1.0, loss_weight=3.0, type="SmoothL1Loss"),
+                loss_cls=dict(
+                    loss_weight=1.0,
+                    use_sigmoid=False,
+                    type="CrossEntropyLoss",
+                ),
+                num_classes=N_CLASSES,
+                reg_class_agnostic=True,
+                roi_feat_size=7,
+                type="Shared2FCBBoxHead",
             ),
-            num_classes=N_CLASSES,
-            reg_class_agnostic=False,
-            roi_feat_size=7,
-            type="Shared2FCBBoxHead",
-        ),
+            dict(
+                bbox_coder=dict(
+                    target_means=[0.0, 0.0, 0.0, 0.0],
+                    target_stds=[0.033, 0.033, 0.067, 0.067],
+                    type="DeltaXYWHBBoxCoder",
+                ),
+                fc_out_channels=1024,
+                in_channels=256,
+                loss_bbox=dict(beta=1.0, loss_weight=3.0, type="SmoothL1Loss"),
+                loss_cls=dict(
+                    loss_weight=1.0,
+                    use_sigmoid=False,
+                    type="CrossEntropyLoss",
+                ),
+                num_classes=N_CLASSES,
+                reg_class_agnostic=True,
+                roi_feat_size=7,
+                type="Shared2FCBBoxHead",
+            ),
+        ],
         bbox_roi_extractor=dict(
             featmap_strides=[4, 8, 16, 32],
             out_channels=256,
             roi_layer=dict(output_size=7, sampling_ratio=0, type="RoIAlign"),
             type="SingleRoIExtractor",
         ),
-        type="StandardRoIHead",
+        num_stages=3,
+        stage_loss_weights=[1, 0.5, 0.25],
+        type="CascadeRoIHead",
     ),
     rpn_head=dict(
         anchor_generator=dict(
@@ -122,11 +164,15 @@ model = dict(
         ),
         feat_channels=256,
         in_channels=256,
-        loss_bbox=dict(loss_weight=3.0, type="L1Loss"),
+        loss_bbox=dict(
+            beta=0.1111111111111111,
+            loss_weight=10.0,
+            type="SmoothL1Loss",
+        ),
         loss_cls=dict(
-            loss_weight=1.0,
-            use_sigmoid=True,
+            loss_weight=10.0,
             type="CrossEntropyLoss",
+            use_sigmoid=True,
         ),
         type="RPNHead",
     ),
@@ -144,27 +190,67 @@ model = dict(
         ),
     ),
     train_cfg=dict(
-        rcnn=dict(
-            assigner=dict(
-                ignore_iof_thr=-1,
-                match_low_quality=False,
-                min_pos_iou=0.5,
-                neg_iou_thr=0.5,
-                pos_iou_thr=0.5,
-                type="MaxIoUAssigner",
+        rcnn=[
+            dict(
+                assigner=dict(
+                    ignore_iof_thr=-1,
+                    match_low_quality=False,
+                    min_pos_iou=0.5,
+                    neg_iou_thr=0.5,
+                    pos_iou_thr=0.5,
+                    type="MaxIoUAssigner",
+                ),
+                debug=False,
+                pos_weight=-1,
+                sampler=dict(
+                    add_gt_as_proposals=True,
+                    neg_pos_ub=-1,
+                    num=512,
+                    pos_fraction=0.25,
+                    type="RandomSampler",
+                ),
             ),
-            debug=False,
-            pos_weight=-1,
-            sampler=dict(
-                add_gt_as_proposals=True,
-                neg_pos_ub=-1,
-                num=512,
-                pos_fraction=0.25,
-                type="RandomSampler",
+            dict(
+                assigner=dict(
+                    ignore_iof_thr=-1,
+                    match_low_quality=False,
+                    min_pos_iou=0.6,
+                    neg_iou_thr=0.6,
+                    pos_iou_thr=0.6,
+                    type="MaxIoUAssigner",
+                ),
+                debug=False,
+                pos_weight=-1,
+                sampler=dict(
+                    add_gt_as_proposals=True,
+                    neg_pos_ub=-1,
+                    num=512,
+                    pos_fraction=0.25,
+                    type="RandomSampler",
+                ),
             ),
-        ),
+            dict(
+                assigner=dict(
+                    ignore_iof_thr=-1,
+                    match_low_quality=False,
+                    min_pos_iou=0.7,
+                    neg_iou_thr=0.7,
+                    pos_iou_thr=0.7,
+                    type="MaxIoUAssigner",
+                ),
+                debug=False,
+                pos_weight=-1,
+                sampler=dict(
+                    add_gt_as_proposals=True,
+                    neg_pos_ub=-1,
+                    num=512,
+                    pos_fraction=0.25,
+                    type="RandomSampler",
+                ),
+            ),
+        ],
         rpn=dict(
-            allowed_border=-1,
+            allowed_border=0,
             assigner=dict(
                 ignore_iof_thr=-1,
                 match_low_quality=True,
@@ -184,47 +270,38 @@ model = dict(
             ),
         ),
         rpn_proposal=dict(
-            max_per_img=1000,
+            max_per_img=2000,
             min_bbox_size=0,
             nms=dict(iou_threshold=0.7, type="nms"),
             nms_pre=2000,
         ),
     ),
-    type="FasterRCNN",
+    type="CascadeRCNN",
 )
-
 optim_wrapper = dict(
-    optimizer=dict(lr=0.02, momentum=0.9, type="SGD", weight_decay=0.0001),
+    optimizer=dict(lr=0.01, momentum=0.9, type="SGD", weight_decay=0.0001),
     type="OptimWrapper",
 )
 param_scheduler = [
-    # ========== LR warm-up ==========
-    # Based on the training batch size (8), each epoch has 5172 iterations.
-    # Therefore after 4 epochs, the learning rate will be increased to 0.02.
-    dict(
-        begin=0,
-        by_epoch=False,
-        end=20688,
-        start_factor=0.001,
-        end_factor=1.0,
-        type="LinearLR",
-    ),
-    # ========== LR decay ==========
-    # The learning rate will be decayed by a factor of 0.1 each time AFTER
-    # the specified epoch milestones.
-    # We decay the learning rate first at epoch 6, right after the warm-up
-    # phase, then decay it again every 2 epochs based on experiment results.
     dict(
         begin=0,
         by_epoch=True,
         end=10,
-        gamma=0.2,
-        milestones=[5, 7, 9],
+        start_factor=0.1,
+        end_factor=1.0,
+        type="LinearLR",
+    ),
+    dict(
+        begin=30,
+        by_epoch=True,
+        end=100,
+        gamma=0.1,
+        milestones=[30, 50, 70, 90],
         type="MultiStepLR",
     ),
 ]
 
-custom_hooks = [dict(type="UnfreezeMMDetHook", unfreeze_epoch=11)]
+custom_hooks = [dict(type="UnfreezeMMDetHook", unfreeze_epoch=40)]
 resume = False
 test_cfg = dict(type="TestLoop")
 test_pipeline = [
@@ -258,7 +335,7 @@ test_evaluator = dict(
     type=METRIC_TYPE,
 )
 train_cfg = dict(
-    max_epochs=14,
+    max_epochs=100,
     val_interval=1,
     type="EpochBasedTrainLoop",
 )
@@ -315,7 +392,7 @@ val_evaluator = dict(
     ann_file=DATA_ROOT + ANN_VA,
     backend_args=None,
     format_only=False,
-    metric="proposal",  # can use "bbox" if the metainfo is set
+    metric="bbox",
     type=METRIC_TYPE,
 )
 vis_backends = [dict(type="LocalVisBackend")]
