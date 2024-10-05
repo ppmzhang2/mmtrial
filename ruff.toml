@@ -25,6 +25,8 @@ extend-exclude = [
     "src/mmtrial/test.py",
     "src/mmtrial/train_mmdet.py",
     "src/mmtrial/test_mmdet.py",
+    "src/mmtrial/train_mmyolo.py",
+    "src/mmtrial/test_mmyolo.py",
     "src/mmtrial/download_dataset_mmdet.py",
 ]
 line-length = 79
