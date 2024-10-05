@@ -1,12 +1,6 @@
 """Config for Faster R-CNN with ResNet-101-FPN on COCO dataset (1x)."""
 # ruff: noqa: C408
 
-custom_imports = dict(
-    # import is relative to where your train script is located
-    imports=["tx", "hooks"],
-    allow_failed_imports=False,
-)
-
 METAINFO = {
     "classes": ("distress", ),
     # palette is a list of color tuples, which is used for visualization.
@@ -15,25 +9,111 @@ METAINFO = {
     ],
 }
 DATA_ROOT = "data/chch/"
-ANN_DIR = "annotations"
-ANN_TR = "/".join([ANN_DIR, "instances_train2.json"])
-ANN_VA = "/".join([ANN_DIR, "instances_val2.json"])
+ANN_TR = "/".join(["annotations", "instances_train2.json"])
+ANN_VA = "/".join(["annotations", "instances_val2.json"])
 IMG_DIR_TR = "train/"
 IMG_DIR_VA = "val/"
 DATASET_TYPE = "CocoDataset"
-METRIC_TYPE = "CocoMetric"
 N_CLASSES = 1
+N_EP = 40
 BATCH_SIZE_TR = 8
-RESIZE_SCALE = (1333, 800)
-PACK_DET_INPUTS_META_KEYS = (
-    "img_id",
-    "img_path",
-    "ori_shape",
-    "img_shape",
-    "scale_factor",
+BATCH_SIZE_VA = 4
+BATCH_SIZE_TE = 16
+N_WORKER_TR = 8
+N_WORKER_VA = 4
+N_WORKER_TE = 16
+RESIZE_SCALE = (800, 1333)
+
+EVAL_CFG = (
+    ("ann_file", "/".join([DATA_ROOT, ANN_VA])),
+    ("backend_args", None),
+    ("format_only", False),
+    ("metric", "bbox"),
+    ("type", "CocoMetric"),
 )
 
-auto_scale_lr = dict(base_batch_size=BATCH_SIZE_TR, enable=False)
+PIPELINE_TR = (
+    dict(backend_args=None, type="LoadImageFromFile"),
+    dict(with_bbox=True, type="LoadAnnotations"),
+    dict(prob=0.5, type="RandomFlip"),
+    dict(
+        transforms=[
+            [
+                dict(type="RandomShift", prob=0.5, max_shift_px=32),
+                dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
+            ],
+            [
+                dict(
+                    type="RandomAffine",
+                    max_rotate_degree=5,
+                    max_translate_ratio=0.05,
+                    scaling_ratio_range=(0.9, 1.1),
+                    max_shear_degree=1,
+                ),
+                dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
+            ],
+            [
+                dict(
+                    type="RandomGrayscale",
+                    prob=0.5,
+                    keep_channels=True,
+                    channel_weights=[1.0, 1.0, 1.0],
+                    color_format="bgr",
+                ),
+                dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
+            ],
+            [
+                dict(
+                    type="RandomCrop",
+                    crop_size=(600, 800),
+                    crop_type="absolute_range",
+                    allow_negative_crop=False,
+                ),
+                dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
+            ],
+        ],
+        type="RandomChoice",
+    ),
+    dict(type="PackDetInputs"),
+)
+PIPELINE_VA = (
+    dict(backend_args=None, type="LoadImageFromFile"),
+    dict(with_bbox=True, type="LoadAnnotations"),
+    dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
+    dict(
+        meta_keys=(
+            "img_id",
+            "img_path",
+            "ori_shape",
+            "img_shape",
+            "scale_factor",
+        ),
+        type="PackDetInputs",
+    ),
+)
+
+DATASET_VA_CFG = (
+    ("ann_file", ANN_VA),
+    ("backend_args", None),
+    ("data_prefix", dict(img=IMG_DIR_VA)),
+    ("data_root", DATA_ROOT),
+    ("pipeline", list(PIPELINE_VA)),
+    ("test_mode", True),
+    ("metainfo", METAINFO),
+    ("type", DATASET_TYPE),
+)
+DATASET_TR_CFG = (
+    ("ann_file", ANN_TR),
+    ("backend_args", None),
+    ("data_prefix", dict(img=IMG_DIR_TR)),
+    ("data_root", DATA_ROOT),
+    ("filter_cfg", dict(filter_empty_gt=True, min_size=32)),
+    ("pipeline", list(PIPELINE_TR)),
+    ("metainfo", METAINFO),
+    ("type", DATASET_TYPE),
+)
+
+auto_scale_lr = dict(base_batch_size=16, enable=False)
 backend_args = None
 data_root = DATA_ROOT
 dataset_type = DATASET_TYPE
@@ -60,7 +140,7 @@ model = dict(
         depth=101,
         frozen_stages=1,
         init_cfg=dict(checkpoint="torchvision://resnet101", type="Pretrained"),
-        norm_cfg=dict(requires_grad=True, type="BN"),  # TODO: GN
+        norm_cfg=dict(requires_grad=True, type="BN"),
         norm_eval=True,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
@@ -92,8 +172,8 @@ model = dict(
             loss_bbox=dict(loss_weight=1.0, type="L1Loss"),
             loss_cls=dict(
                 loss_weight=1.0,
-                use_sigmoid=False,
                 type="CrossEntropyLoss",
+                use_sigmoid=False,
             ),
             num_classes=N_CLASSES,
             reg_class_agnostic=False,
@@ -125,8 +205,8 @@ model = dict(
         loss_bbox=dict(loss_weight=3.0, type="L1Loss"),
         loss_cls=dict(
             loss_weight=1.0,
-            use_sigmoid=True,
             type="CrossEntropyLoss",
+            use_sigmoid=True,
         ),
         type="RPNHead",
     ),
@@ -194,130 +274,63 @@ model = dict(
 )
 
 optim_wrapper = dict(
-    optimizer=dict(lr=0.02, momentum=0.9, type="SGD", weight_decay=0.0001),
+    optimizer=dict(lr=0.01, momentum=0.9, type="SGD", weight_decay=0.0001),
     type="OptimWrapper",
 )
 param_scheduler = [
-    # ========== LR warm-up ==========
-    # Based on the training batch size (8), each epoch has 5172 iterations.
-    # Therefore after 4 epochs, the learning rate will be increased to 0.02.
-    dict(
-        begin=0,
-        by_epoch=False,
-        end=20688,
-        start_factor=0.001,
-        end_factor=1.0,
-        type="LinearLR",
-    ),
-    # ========== LR decay ==========
-    # The learning rate will be decayed by a factor of 0.1 each time AFTER
-    # the specified epoch milestones.
-    # We decay the learning rate first at epoch 6, right after the warm-up
-    # phase, then decay it again every 2 epochs based on experiment results.
     dict(
         begin=0,
         by_epoch=True,
         end=10,
-        gamma=0.2,
-        milestones=[5, 7, 9],
+        start_factor=0.001,
+        end_factor=1.0,
+        type="LinearLR",
+    ),
+    dict(
+        begin=0,
+        by_epoch=True,
+        end=N_EP,
+        gamma=0.1,
+        milestones=[15, 20, 25, 30],
         type="MultiStepLR",
     ),
 ]
-
-custom_hooks = [dict(type="UnfreezeMMDetHook", unfreeze_epoch=11)]
 resume = False
+
 test_cfg = dict(type="TestLoop")
-test_pipeline = [
-    dict(backend_args=None, type="LoadImageFromFile"),
-    dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
-    dict(with_bbox=True, type="LoadAnnotations"),
-    dict(meta_keys=PACK_DET_INPUTS_META_KEYS, type="PackDetInputs"),
-]
 test_dataloader = dict(
-    batch_size=16,
-    dataset=dict(
-        ann_file=ANN_VA,
-        backend_args=None,
-        data_prefix=dict(img=IMG_DIR_VA),
-        data_root=DATA_ROOT,
-        pipeline=test_pipeline,
-        test_mode=True,
-        metainfo=METAINFO,
-        type=DATASET_TYPE,
-    ),
+    batch_size=BATCH_SIZE_TE,
+    dataset=dict(DATASET_VA_CFG),
     drop_last=False,
-    num_workers=16,  # suggested max number = 20
+    num_workers=N_WORKER_TE,
     persistent_workers=True,
     sampler=dict(shuffle=False, type="DefaultSampler"),
 )
-test_evaluator = dict(
-    ann_file=DATA_ROOT + ANN_VA,
-    backend_args=None,
-    format_only=False,
-    metric="bbox",
-    type=METRIC_TYPE,
-)
-train_cfg = dict(
-    max_epochs=14,
-    val_interval=1,
-    type="EpochBasedTrainLoop",
-)
-train_pipeline = [
-    dict(backend_args=None, type="LoadImageFromFile"),
-    dict(with_bbox=True, type="LoadAnnotations"),
-    dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
-    dict(type="RandMMDetTx"),  # all-in-one custom transform
-    dict(type="PackDetInputs"),
-]
+test_evaluator = dict(EVAL_CFG)
+test_pipeline = list(PIPELINE_VA)
+
+train_cfg = dict(max_epochs=N_EP, type="EpochBasedTrainLoop", val_interval=1)
 train_dataloader = dict(
     batch_sampler=dict(type="AspectRatioBatchSampler"),
     batch_size=BATCH_SIZE_TR,
-    dataset=dict(
-        ann_file=ANN_TR,
-        backend_args=None,
-        data_prefix=dict(img=IMG_DIR_TR),
-        data_root=DATA_ROOT,
-        filter_cfg=dict(filter_empty_gt=True, min_size=32),
-        pipeline=train_pipeline,
-        metainfo=METAINFO,
-        type=DATASET_TYPE,
-    ),
-    num_workers=8,
+    dataset=dict(DATASET_TR_CFG),
+    num_workers=N_WORKER_TR,
     persistent_workers=True,
     sampler=dict(shuffle=True, type="DefaultSampler"),
 )
-val_cfg = dict(type="ValLoop")
+train_pipeline = list(PIPELINE_TR)
 
-val_pipeline = [
-    dict(backend_args=None, type="LoadImageFromFile"),
-    dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
-    dict(with_bbox=True, type="LoadAnnotations"),
-    dict(meta_keys=PACK_DET_INPUTS_META_KEYS, type="PackDetInputs"),
-]
+val_cfg = dict(type="ValLoop")
 val_dataloader = dict(
-    batch_size=4,
-    dataset=dict(
-        ann_file=ANN_VA,
-        backend_args=None,
-        data_prefix=dict(img=IMG_DIR_VA),
-        data_root=DATA_ROOT,
-        pipeline=val_pipeline,
-        test_mode=True,
-        metainfo=METAINFO,
-        type=DATASET_TYPE,
-    ),
+    batch_size=BATCH_SIZE_VA,
+    dataset=dict(DATASET_VA_CFG),
     drop_last=False,
-    num_workers=4,
+    num_workers=N_WORKER_VA,
     persistent_workers=True,
     sampler=dict(shuffle=False, type="DefaultSampler"),
 )
-val_evaluator = dict(
-    ann_file=DATA_ROOT + ANN_VA,
-    backend_args=None,
-    format_only=False,
-    metric="proposal",  # can use "bbox" if the metainfo is set
-    type=METRIC_TYPE,
-)
+val_evaluator = dict(EVAL_CFG)
+
 vis_backends = [dict(type="LocalVisBackend")]
 visualizer = dict(
     name="visualizer",
