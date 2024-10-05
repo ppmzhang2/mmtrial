@@ -1,7 +1,24 @@
 """Config for Faster R-CNN with ResNet-101-FPN on COCO dataset (1x)."""
 # ruff: noqa: C408
 
-_backend_args = None
+METAINFO = {
+    "classes": ("distress", ),
+    # palette is a list of color tuples, which is used for visualization.
+    "palette": [
+        (220, 20, 60),
+    ],
+}
+DATA_ROOT = "data/chch/"
+ANN_TR = "/".join(["annotations", "instances_train2.json"])
+ANN_VA = "/".join(["annotations", "instances_val2.json"])
+ANN_TR_EVAL = "/".join([DATA_ROOT, ANN_TR])
+ANN_VA_EVAL = "/".join([DATA_ROOT, ANN_VA])
+IMG_DIR_TR = "train/"
+IMG_DIR_VA = "val/"
+DATASET_TYPE = "CocoDataset"
+METRIC_TYPE = "CocoMetric"
+N_CLASSES = 1
+BATCH_SIZE_TR = 8
 
 tx_keepratioresize_320 = dict(scale=(320, 320), type="YOLOv5KeepRatioResize")
 tx_keepratioresize_640 = dict(scale=(640, 640), type="YOLOv5KeepRatioResize")
@@ -39,7 +56,6 @@ tx_multiscaleresize = (
     ),
 )
 
-_multiscale_resize_transforms = list(tx_multiscaleresize)
 affine_scale = 0.9
 albu_train_transforms = [
     dict(p=0.01, type="Blur"),
@@ -47,6 +63,8 @@ albu_train_transforms = [
     dict(p=0.01, type="ToGray"),
     dict(p=0.01, type="CLAHE"),
 ]
+_multiscale_resize_transforms = list(tx_multiscaleresize)
+_backend_args = None
 backend_args = None
 base_lr = 0.01
 batch_shapes_cfg = None
@@ -183,7 +201,7 @@ custom_hooks = [
         type="mmdet.PipelineSwitchHook",
     ),
 ]
-data_root = "data/coco/"
+data_root = DATA_ROOT
 dataset_type = "YOLOv5CocoDataset"
 deepen_factor = 1.0
 default_hooks = dict(
@@ -369,13 +387,14 @@ test_cfg = dict(type="TestLoop")
 test_dataloader = dict(
     batch_size=1,
     dataset=dict(
-        ann_file="annotations/instances_val2017.json",
+        ann_file=ANN_VA,
         batch_shapes_cfg=None,
-        data_prefix=dict(img="val2017/"),
-        data_root="data/coco/",
+        data_prefix=dict(img=IMG_DIR_VA),
+        data_root=DATA_ROOT,
         pipeline=list(pipeline_va),
         test_mode=True,
         type="YOLOv5CocoDataset",
+        metainfo=METAINFO,
     ),
     drop_last=False,
     num_workers=2,
@@ -384,7 +403,7 @@ test_dataloader = dict(
     sampler=dict(shuffle=False, type="DefaultSampler"),
 )
 test_evaluator = dict(
-    ann_file="data/coco/annotations/instances_val2017.json",
+    ann_file=ANN_VA_EVAL,
     metric="bbox",
     proposal_nums=(100, 1, 10),
     type="mmdet.CocoMetric",
@@ -405,12 +424,13 @@ train_dataloader = dict(
     batch_size=16,
     collate_fn=dict(type="yolov5_collate"),
     dataset=dict(
-        ann_file="annotations/instances_train2017.json",
-        data_prefix=dict(img="train2017/"),
-        data_root="data/coco/",
+        ann_file=ANN_TR,
+        data_prefix=dict(img=IMG_DIR_TR),
+        data_root=DATA_ROOT,
         filter_cfg=dict(filter_empty_gt=False, min_size=32),
         pipeline=list(pipeline_tx),
         type="YOLOv5CocoDataset",
+        metainfo=METAINFO,
     ),
     num_workers=8,
     persistent_workers=True,
@@ -462,13 +482,14 @@ val_data_prefix = "val2017/"
 val_dataloader = dict(
     batch_size=1,
     dataset=dict(
-        ann_file="annotations/instances_val2017.json",
+        ann_file=ANN_VA,
         batch_shapes_cfg=None,
-        data_prefix=dict(img="val2017/"),
-        data_root="data/coco/",
+        data_prefix=dict(img=IMG_DIR_VA),
+        data_root=DATA_ROOT,
         pipeline=list(pipeline_va),
         test_mode=True,
         type="YOLOv5CocoDataset",
+        metainfo=METAINFO,
     ),
     drop_last=False,
     num_workers=2,
@@ -477,7 +498,7 @@ val_dataloader = dict(
     sampler=dict(shuffle=False, type="DefaultSampler"),
 )
 val_evaluator = dict(
-    ann_file="data/coco/annotations/instances_val2017.json",
+    ann_file=ANN_VA_EVAL,
     metric="bbox",
     proposal_nums=(100, 1, 10),
     type="mmdet.CocoMetric",
