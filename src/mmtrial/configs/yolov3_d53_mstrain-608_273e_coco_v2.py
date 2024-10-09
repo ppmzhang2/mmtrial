@@ -17,8 +17,8 @@ IMG_DIR_VA = "val/"
 DATASET_TYPE = "CocoDataset"
 METRIC_TYPE = "CocoMetric"
 N_CLASSES = 1
-BATCH_SIZE_TR = 8
-BATCH_SIZE_VA = 1
+BATCH_SIZE_TR = 16
+BATCH_SIZE_VA = 4
 N_EP = 100
 
 auto_scale_lr = dict(base_batch_size=64, enable=False)
@@ -165,7 +165,7 @@ param_scheduler = [
     dict(
         by_epoch=True,
         begin=0,
-        end=60,
+        end=30,
         start_factor=0.1,
         type="LinearLR",
     ),
