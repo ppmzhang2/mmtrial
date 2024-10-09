@@ -22,7 +22,7 @@ BATCH_SIZE_TE = 16
 N_WORKER_TR = 8
 N_WORKER_VA = 4
 N_WORKER_TE = 16
-RESIZE_SCALE = (1333, 800)
+RESIZE_SCALE = (800, 1333)
 
 EVAL_CFG = (
     ("ann_file", "/".join([DATA_ROOT, ANN_VA])),
@@ -45,7 +45,7 @@ PIPELINE_TR = (
             [
                 dict(
                     type="RandomAffine",
-                    max_rot_degree=5,
+                    max_rotate_degree=5,
                     max_translate_ratio=0.05,
                     scaling_ratio_range=(0.9, 1.1),
                     max_shear_degree=1,
@@ -58,14 +58,14 @@ PIPELINE_TR = (
                     prob=0.5,
                     keep_channels=True,
                     channel_weights=[1.0, 1.0, 1.0],
-                    color_format="BGR",
+                    color_format="bgr",
                 ),
                 dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
             ],
             [
                 dict(
                     type="RandomCrop",
-                    crop_size=(800, 600),
+                    crop_size=(600, 800),
                     crop_type="absolute_range",
                     allow_negative_crop=False,
                 ),
