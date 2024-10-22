@@ -27,5 +27,6 @@ results/
 data/
 checkpoints/
 work_dirs/
+vis_data/
 .python-version
 ruff.log

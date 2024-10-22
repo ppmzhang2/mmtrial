@@ -3,65 +3,165 @@
 Ref: https://github.com/open-mmlab/mmdetection/issues/10829
 """
 
+import argparse
 import os
-from enum import Enum
+from itertools import chain
 
-import cv2
-import mmcv
-import mmcv.utils
-from mmdet.apis import inference_detector
-from mmdet.apis import init_detector
-from mmdet.registry import VISUALIZERS
-
-MDL_CFG = "faster-rcnn_r50_fpn_1x_coco.py"
-# MDL_CHK = "faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
-MDL_CHK = "../work_dirs/faster-rcnn_r50_fpn_1x_coco/epoch_12.pth"
-DEVICE = "cuda:0"
-IMG_DST_DIR = "."
-# IMG_DEMO = "../mmdetection/demo/demo.jpg"
-IMG_DEMO = "data/chch/val/20231018/G0029142.JPG"
-
-base_dir = os.path.abspath(os.path.dirname(__file__))
-ckpt_dir = os.path.join(base_dir, "checkpoints")
+import pandas as pd
+from loguru import logger
+from mmdet.apis import DetInferencer
 
 
-class TColor(Enum):
-    """Colors for terminal output."""
+def get_image_groups(
+    folder: str,
+    n: int,
+    extensions: tuple,
+) -> list[list[str]]:
+    """Gets images from a folder and divides them into groups.
 
-    HEADER = "\033[95m"
-    OKBLUE = "\033[94m"
-    OKCYAN = "\033[96m"
-    OKGREEN = "\033[92m"
-    WARNING = "\033[93m"
-    FAIL = "\033[91m"
-    ENDC = "\033[0m"
-    BOLD = "\033[1m"
-    UNDERLINE = "\033[4m"
+    Args:
+        folder (str): The folder containing the images.
+        n (int): The maximum number of images in each group.
+        extensions (tuple): The valid image extensions.
+
+    Returns:
+        list[list[str]]: A list of `M` groups, each containing up to `n` image
+          paths. Returns an empty list if no images are found.
+    """
+    if not os.path.isdir(folder):
+        logger.error(f"The folder '{folder}' does not exist.")
+        raise ValueError()
+
+    # Gather all image files with the specified extensions
+    image_paths = [
+        os.path.join(root, file) for root, _, files in os.walk(folder)
+        for file in files if file.lower().endswith(extensions)
+    ]
+
+    if not image_paths:
+        logger.warning("No images found in the folder "
+                       f"'{folder}' with extensions {extensions}.")
+        return []
+
+    # Split the list of images into chunks of size `n`
+    return [image_paths[i:i + n] for i in range(0, len(image_paths), n)]
 
 
-def print_env() -> None:
-    """Print the environment info."""
-    for _, (k, v) in enumerate(mmcv.utils.collect_env().items()):
-        print(f"{TColor.OKGREEN.value}=={k}== "  # noqa: T201
-              f"{TColor.ENDC.value}{v}")
+def infer(inferencer: DetInferencer, imgs: list[str]) -> pd.DataFrame:
+    """Infers on the given images.
+
+    Args:
+        inferencer (DetInferencer): The inference object.
+        imgs (list[str]): List of `N` image paths.
+
+    Returns:
+        pd.DataFrame: Dataframe containing the inference results
+    """
+    pred = inferencer(imgs)["predictions"]
+    seq_n = [len(p["labels"]) for p in pred]
+    seq_score = [p["scores"] for p in pred]
+    seq_bboxe = [p["bboxes"] for p in pred]
+    seq_label = [p["labels"] for p in pred]
+
+    bboxes = list(chain(*seq_bboxe))
+    images = list(chain(*[[i] * n for i, n in zip(imgs, seq_n, strict=True)]))
+    scores = list(chain(*seq_score))
+    x1 = [bbx[0] for bbx in bboxes]
+    y1 = [bbx[1] for bbx in bboxes]
+    x2 = [bbx[2] for bbx in bboxes]
+    y2 = [bbx[3] for bbx in bboxes]
+    labels = list(chain(*seq_label))
+    return pd.DataFrame({
+        "image": images,
+        "score": scores,
+        "label": labels,
+        "x1": x1,
+        "y1": y1,
+        "x2": x2,
+        "y2": y2,
+    })
 
 
-model = init_detector("/".join([base_dir, MDL_CFG]),
-                      "/".join([ckpt_dir, MDL_CHK]),
-                      device=DEVICE)
+def main(  # noqa: PLR0913
+    img_dir: str,
+    tsv_path: str,
+    cfg_path: str,
+    ckpt_path: str,
+    device: str,
+    *,
+    n: int = 10,
+) -> None:
+    """Main function to perform inference.
 
-model.cfg.visualizer.save_dir = "/".join([base_dir, IMG_DST_DIR])
+    Args:
+        img_dir (str): Folder containing the images to run inference on.
+        tsv_path (str): Path to the output TSV file.
+        cfg_path (str): Path to the model configuration file.
+        ckpt_path (str): Path to the model checkpoint file.
+        device (str): Device to run the inference on.
+        n (int): Maximum number of images in each group. Defaults to 10.
+    """
+    # Get the base directory of the current script
+    imgs = get_image_groups(img_dir, n, (".jpg", ".jpeg"))
 
-visualizer = VISUALIZERS.build(model.cfg.visualizer)
+    if not imgs:
+        return
 
-img_demo = cv2.imread("/".join([base_dir, IMG_DEMO]))
-res = inference_detector(model, img_demo)
+    inferencer = DetInferencer(cfg_path, ckpt_path, device=device)
 
-visualizer.add_datasample(
-    name="result",
-    image=mmcv.imconvert(img_demo, "bgr", "rgb"),
-    data_sample=res,
-    draw_gt=False,
-    pred_score_thr=0.5,
-    show=False,
-)
+    for i, grp in enumerate(imgs):
+        logger.info(f"Processing image group {i + 1}...")
+        df = infer(inferencer, grp)  # noqa: PD901
+        df.to_csv(tsv_path, sep="\t", index=False, mode="a", header=not i)
+
+
+if __name__ == "__main__":
+    # Set up argument parsing
+    parser = argparse.ArgumentParser(
+        description="Run inference using MMDetection.")
+
+    parser.add_argument(
+        "img_dir",
+        type=str,
+        help="Folder containing the images to run inference on",
+    )
+    parser.add_argument(
+        "tsv_path",
+        type=str,
+        help="Path to the output TSV file",
+    )
+    parser.add_argument(
+        "cfg_path",
+        type=str,
+        help="Path to the model configuration file",
+    )
+    parser.add_argument(
+        "ckpt_path",
+        type=str,
+        help="Path to the model checkpoint file",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda:0",
+        help="Device to run the inference on (default: cuda:0)",
+    )
+    parser.add_argument(
+        "--n",
+        type=int,
+        default=10,
+        help="Maximum number of images in each group (default: 10)",
+    )
+
+    # Parse arguments
+    args = parser.parse_args()
+
+    # Call the main function with parsed arguments
+    main(
+        args.img_dir,
+        args.tsv_path,
+        args.cfg_path,
+        args.ckpt_path,
+        args.device,
+        n=args.n,
+    )
