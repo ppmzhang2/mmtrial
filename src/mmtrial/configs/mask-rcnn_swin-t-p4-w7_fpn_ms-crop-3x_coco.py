@@ -399,7 +399,6 @@ vis_backends = [
 visualizer = dict(
     name="visualizer",
     type="DetLocalVisualizer",
-    vis_backends=[
-        dict(type="LocalVisBackend"),
-    ],
+    save_dir="vis/mask-rcnn_swin-t-p4-w7_fpn_ms-crop-3x_coco",
+    vis_backends=vis_backends,
 )
