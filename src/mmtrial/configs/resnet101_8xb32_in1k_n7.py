@@ -18,7 +18,7 @@ N_EP = 20
 N_EP_FREEZE = 15
 N_WORKERS = 10
 DATA_ROOT = "data/category"
-RESIZE_SCALE = (224, 224)
+SIZE_FINAL = 224
 METAINFO = {
     "classes": (
         "bump",
@@ -33,16 +33,45 @@ METAINFO = {
 
 PIPELINE_TR = (
     dict(type="LoadImageFromFile"),
-    dict(scale=224, crop_ratio_range=(0.9, 1.0), type="RandomResizedCrop"),
-    # dict(keep_ratio=True, scale=RESIZE_SCALE, type="Resize"),
-    dict(type="RandTx"),  # all-in-one custom transform
-    # dict(direction=["horizontal", "vertical"], prob=0.5, type="RandomFlip"),
+    dict(prob=0.5, type="RandomFlip"),
+    dict(edge="short", scale=256, type="ResizeEdge"),
+    # dict(type="RandTx"),  # all-in-one custom transform
+    dict(
+        transforms=[
+            [
+                dict(
+                    prob=0.5,
+                    keep_channels=True,
+                    channel_weights=[1.0, 1.0, 1.0],
+                    color_format="bgr",
+                    type="RandomGrayscale",
+                ),
+                dict(crop_size=SIZE_FINAL, type="CenterCrop"),
+            ],
+            [
+                dict(
+                    crop_size=SIZE_FINAL,
+                    crop_type="absolute_range",
+                    allow_negative_crop=False,
+                    type="RandomCrop",
+                ),
+            ],
+            [
+                dict(
+                    scale=SIZE_FINAL,
+                    crop_ratio_range=(0.8, 1.0),
+                    type="RandomResizedCrop",
+                ),
+            ],
+        ],
+        type="RandomChoice",
+    ),
     dict(type="PackInputs"),
 )
 PIPELINE_VA = (
     dict(type="LoadImageFromFile"),
     dict(edge="short", scale=256, type="ResizeEdge"),
-    dict(crop_size=224, type="CenterCrop"),
+    dict(crop_size=SIZE_FINAL, type="CenterCrop"),
     dict(type="PackInputs"),
 )
 
