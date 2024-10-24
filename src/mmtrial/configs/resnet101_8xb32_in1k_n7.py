@@ -12,10 +12,10 @@ custom_imports = dict(
 
 N_CLASS = 7
 TOPK = (1, 2)
-N_PER_BATCH = 70
-N_PER_CLASS = 10
-N_EP = 30
-N_EP_FREEZE = 10
+N_PER_BATCH = 140
+N_PER_CLASS = 20
+N_EP = 20
+N_EP_FREEZE = 15
 N_WORKERS = 10
 DATA_ROOT = "data/category"
 RESIZE_SCALE = (224, 224)
@@ -88,7 +88,7 @@ log_level = "INFO"
 model = dict(
     backbone=dict(
         depth=101,
-        frozen_stages=1,
+        frozen_stages=-1,
         init_cfg=dict(checkpoint="torchvision://resnet101", type="Pretrained"),
         norm_cfg=dict(requires_grad=True, type="BN"),  # TODO: GN
         norm_eval=True,
@@ -119,7 +119,7 @@ param_scheduler = [
     dict(
         begin=0,
         by_epoch=True,
-        end=5,
+        end=4,
         start_factor=0.1,
         end_factor=1.0,
         type="LinearLR",
@@ -132,15 +132,15 @@ param_scheduler = [
         by_epoch=True,
         end=N_EP,
         gamma=0.5,
-        milestones=[8, 13, 18, 23],
+        milestones=[6, 9, 12, 15],
         type="MultiStepLR",
     ),
 ]
 
-# Unfreeze the backbone after some epochs
-custom_hooks = [
-    dict(type="UnfreezeMMPretrainHook", unfreeze_epoch=N_EP_FREEZE),
-]
+# # Unfreeze the backbone after some epochs
+# custom_hooks = [
+#     dict(type="UnfreezeMMPretrainHook", unfreeze_epoch=N_EP_FREEZE),
+# ]
 randomness = dict(deterministic=False, seed=None)
 resume = False
 
