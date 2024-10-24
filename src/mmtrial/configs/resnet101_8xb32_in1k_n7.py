@@ -33,38 +33,54 @@ METAINFO = {
 
 PIPELINE_TR = (
     dict(type="LoadImageFromFile"),
+    dict(edge="short", scale=384, type="ResizeEdge"),
     dict(prob=0.5, type="RandomFlip"),
-    dict(edge="short", scale=256, type="ResizeEdge"),
     # dict(type="RandTx"),  # all-in-one custom transform
     dict(
         transforms=[
             [
                 dict(
-                    prob=0.5,
+                    prob=0.85,
                     keep_channels=True,
                     channel_weights=[1.0, 1.0, 1.0],
                     color_format="bgr",
                     type="RandomGrayscale",
                 ),
-                dict(crop_size=SIZE_FINAL, type="CenterCrop"),
             ],
             [
                 dict(
-                    crop_size=SIZE_FINAL,
-                    crop_type="absolute_range",
-                    allow_negative_crop=False,
-                    type="RandomCrop",
+                    magnitude_range=(0, 0.2),
+                    direction="horizontal",
+                    type="Shear",
+                )
+            ],
+            [
+                dict(
+                    prob=0.95,
+                    magnitude_range=(0.2, 1.2),
+                    type="Translate",
                 ),
             ],
             [
                 dict(
-                    scale=SIZE_FINAL,
-                    crop_ratio_range=(0.8, 1.0),
-                    type="RandomResizedCrop",
+                    magnitude_range=(0, 0.15),
+                    type='Brightness',
+                ),
+            ],
+            [
+                dict(
+                    prob=0.95,
+                    magnitude_range=(0, 30),
+                    type="Rotate",
                 ),
             ],
         ],
         type="RandomChoice",
+    ),
+    dict(
+        scale=SIZE_FINAL,
+        crop_ratio_range=(0.8, 1.0),
+        type="RandomResizedCrop",
     ),
     dict(type="PackInputs"),
 )
@@ -117,7 +133,7 @@ log_level = "INFO"
 model = dict(
     backbone=dict(
         depth=101,
-        frozen_stages=-1,
+        frozen_stages=1,
         init_cfg=dict(checkpoint="torchvision://resnet101", type="Pretrained"),
         norm_cfg=dict(requires_grad=True, type="BN"),  # TODO: GN
         norm_eval=True,
@@ -154,14 +170,14 @@ param_scheduler = [
         type="LinearLR",
     ),
     # ========== LR decay ==========
-    # The learning rate will be decayed by a factor of 0.2 each time AFTER
+    # The learning rate will be decayed by a factor of 0.7 each time AFTER
     # the specified epoch milestones.
     dict(
         begin=0,
         by_epoch=True,
         end=N_EP,
-        gamma=0.5,
-        milestones=[6, 9, 12, 15],
+        gamma=0.7,
+        milestones=[6, 8, 10, 12, 14, 16],
         type="MultiStepLR",
     ),
 ]
