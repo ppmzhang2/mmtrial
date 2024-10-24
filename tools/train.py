@@ -10,6 +10,8 @@ from mmengine.runner import Runner
 from mmengine.utils import digit_version
 from mmengine.utils.dl_utils import TORCH_VERSION
 
+from utils import set_path
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a model')
@@ -159,4 +161,5 @@ def main():
 
 
 if __name__ == '__main__':
+    set_path()
     main()
