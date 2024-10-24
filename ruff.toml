@@ -21,13 +21,13 @@ exclude = [
     "venv",
 ]
 extend-exclude = [
-    "src/mmtrial/train.py",
-    "src/mmtrial/test.py",
-    "src/mmtrial/train_mmdet.py",
-    "src/mmtrial/test_mmdet.py",
-    "src/mmtrial/train_mmyolo.py",
-    "src/mmtrial/test_mmyolo.py",
-    "src/mmtrial/download_dataset_mmdet.py",
+    "tools/train.py",
+    "tools/test.py",
+    "tools/train_mmdet.py",
+    "tools/test_mmdet.py",
+    "tools/train_mmyolo.py",
+    "tools/test_mmyolo.py",
+    "tools/download_dataset_mmdet.py",
 ]
 line-length = 79
 indent-width = 4

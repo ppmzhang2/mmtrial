@@ -142,7 +142,7 @@ mim download mmdet --config faster-rcnn_r50_fpn_1x_coco --dest .
 Evaluate on test dataset:
 
 ```bash
-python src/mmtrial/test.py \
+python tools/test_mmdet.py \
     src/mmtrial/configs/faster-rcnn_r50_fpn_1x_coco.py \
     checkpoints/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth \
     --show-dir res_faster-rcnn_r50_fpn_1x_coco --work-dir work_dirs
@@ -151,8 +151,19 @@ python src/mmtrial/test.py \
 Train:
 
 ```bash
-python src/mmtrial/train.py \
+python tools/train_mmdet.py \
     src/mmtrial/configs/faster-rcnn_r50_fpn_1x_coco.py --auto-scale-lr
+```
+
+Inference:
+
+```bash
+python tools/inference_mmdet.py \
+    <image-dir> \
+    <output-tsv> \
+    <model-configuration-py> \
+    <model-checkpoint> \
+    --device "cuda:0" --n 256
 ```
 
 ## Classification
